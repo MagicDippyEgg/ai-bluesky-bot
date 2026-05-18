@@ -1,0 +1,35 @@
+name: Monthly Reply Check
+
+on:
+  schedule:
+    # first day of every month at 07:00 UTC
+    - cron: "0 7 1 * *"
+  workflow_dispatch:
+
+jobs:
+  reply-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Check for unanswered replies
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          BSKY_USERNAME: ${{ secrets.BSKY_USERNAME }}
+          BSKY_PASSWORD: ${{ secrets.BSKY_PASSWORD }}
+          LOOKBACK_POSTS: "25"
+          THREAD_DEPTH: "100"
+          GROQ_MODEL: "llama-3.3-70b-versatile"
+        run: |
+          python reply_to_unanswered.py
