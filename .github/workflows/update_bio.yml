@@ -1,0 +1,32 @@
+name: Update Bluesky Bio
+
+on:
+  schedule:
+    # every 2 months, on the 1st day at 07:00 UTC
+    - cron: "0 7 1 */2 *"
+  workflow_dispatch:
+
+jobs:
+  update-bio:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Update bio
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          BSKY_USERNAME: ${{ secrets.BSKY_USERNAME }}
+          BSKY_PASSWORD: ${{ secrets.BSKY_PASSWORD }}
+        run: |
+          python update_bio.py
