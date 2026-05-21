@@ -4,6 +4,7 @@ import random
 from groq import Groq
 from atproto import Client, models
 
+model = "llama-3.3-70b-versatile"
 
 DEFAULT_QUERIES = [
     "random thoughts",
