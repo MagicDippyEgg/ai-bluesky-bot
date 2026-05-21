@@ -104,7 +104,7 @@ def make_reply(query: str, post) -> str:
     )
 
     response = groq_client.chat.completions.create(
-        model=MODEL
+        model=MODEL,
         messages=[{"role": "user", "content": prompt}],
         temperature=1.0,
         max_tokens=80,
