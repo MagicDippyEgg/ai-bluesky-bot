@@ -1,22 +1,19 @@
 import os
 import random
-from datetime import datetime, timezone
 
-import requests
 from groq import Groq
 from atproto import Client, models
 
-PUBLIC_BSKY_API = "https://public.api.bsky.app"
 
 DEFAULT_QUERIES = [
+    "random thoughts",
     "retro tech",
     "windows 7",
     "old computers",
     "minecraft",
-    "bluesky",
     "half life",
     "portal",
-    "random thoughts",
+    "bluesky",
 ]
 
 PROMPT_TEMPLATE = """
@@ -38,36 +35,47 @@ Post author: @{author}
 Post text: {text}
 """
 
+
+def get_value(obj, key, default=None):
+    if obj is None:
+        return default
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    return getattr(obj, key, default)
+
+
 def clean_text(text: str) -> str:
     text = " ".join(text.strip().split())
-    text = text.strip('"').strip("'")
-    return text
+    return text.strip('"').strip("'")
 
-def pick_query() -> str:
+
+def pick_queries():
     raw = os.getenv("SEARCH_QUERIES", "").strip()
     if raw:
         queries = [q.strip() for q in raw.split(",") if q.strip()]
     else:
-        queries = DEFAULT_QUERIES
-    return random.choice(queries)
+        queries = DEFAULT_QUERIES[:]
+    random.shuffle(queries)
+    return queries
 
-def search_posts(query: str) -> list[dict]:
-    resp = requests.get(
-        f"{PUBLIC_BSKY_API}/xrpc/app.bsky.feed.searchPosts",
-        params={"q": query, "limit": 25},
-        timeout=30,
+
+def search_posts(client: Client, query: str):
+    params = models.AppBskyFeedSearchPosts.Params(
+        q=query,
+        limit=25,
+        sort="latest",
     )
-    resp.raise_for_status()
-    data = resp.json()
-    return data.get("posts", [])
+    response = client.app.bsky.feed.search_posts(params)
+    return response.posts
 
-def choose_candidate(posts: list[dict], my_handle: str) -> dict | None:
-    candidates = []
+
+def choose_candidate(posts, my_handle: str):
     my_handle = my_handle.lower().strip()
+    candidates = []
 
     for post in posts:
-        author = (post.get("author") or {}).get("handle", "").lower().strip()
-        text = ((post.get("record") or {}).get("text") or "").strip()
+        author = (get_value(get_value(post, "author"), "handle", "") or "").lower().strip()
+        text = (get_value(get_value(post, "record"), "text", "") or "").strip()
 
         if not text:
             continue
@@ -81,11 +89,12 @@ def choose_candidate(posts: list[dict], my_handle: str) -> dict | None:
 
     return random.choice(candidates)
 
-def make_reply(query: str, post: dict) -> str:
+
+def make_reply(query: str, post) -> str:
     groq_client = Groq(api_key=os.environ["GROQ_API_KEY"])
 
-    author = ((post.get("author") or {}).get("handle")) or "unknown"
-    text = ((post.get("record") or {}).get("text")) or ""
+    author = get_value(get_value(post, "author"), "handle", "unknown")
+    text = get_value(get_value(post, "record"), "text", "")
 
     prompt = PROMPT_TEMPLATE.format(
         query=query,
@@ -104,51 +113,57 @@ def make_reply(query: str, post: dict) -> str:
     reply = clean_text(reply)
     return reply[:240]
 
-def build_reply_ref(post: dict):
-    parent_ref = models.create_strong_ref(
-        type("Tmp", (), {"uri": post["uri"], "cid": post["cid"]})()
-    )
 
-    record = post.get("record") or {}
-    reply_info = record.get("reply")
+def build_reply_ref(post):
+    parent_ref = models.create_strong_ref(post)
 
-    if reply_info and reply_info.get("root") and reply_info.get("parent"):
-        root_data = reply_info["root"]
-        root_ref = models.create_strong_ref(
-            type("Tmp", (), {"uri": root_data["uri"], "cid": root_data["cid"]})()
-        )
+    record = get_value(post, "record")
+    reply_info = get_value(record, "reply")
+
+    root_obj = get_value(reply_info, "root")
+    if root_obj:
+        root_ref = models.create_strong_ref(root_obj)
     else:
         root_ref = parent_ref
 
-    return models.AppBskyFeedPost.ReplyRef(parent=parent_ref, root=root_ref)
+    return models.AppBskyFeedPost.ReplyRef(
+        root=root_ref,
+        parent=parent_ref,
+    )
+
 
 def main():
     handle = os.environ["BSKY_USERNAME"]
     password = os.environ["BSKY_PASSWORD"]
 
-    query = pick_query()
-    print("Search query:", query)
+    client = Client()
+    client.login(handle, password)
 
-    posts = search_posts(query)
-    if not posts:
-        print("No posts found.")
-        return
+    queries = pick_queries()
+    target = None
+    used_query = None
 
-    target = choose_candidate(posts, handle)
+    for query in queries:
+        print("Search query:", query)
+        posts = search_posts(client, query)
+        target = choose_candidate(posts, handle)
+
+        if target:
+            used_query = query
+            break
+
     if not target:
-        print("No suitable post found after filtering.")
+        print("No suitable post found.")
         return
 
-    target_author = ((target.get("author") or {}).get("handle")) or "unknown"
-    target_text = ((target.get("record") or {}).get("text")) or ""
+    target_author = get_value(get_value(target, "author"), "handle", "unknown")
+    target_text = get_value(get_value(target, "record"), "text", "")
+
     print(f"Target: @{target_author}")
     print(f"Text: {target_text}")
 
-    reply_text = make_reply(query, target)
+    reply_text = make_reply(used_query or "random thoughts", target)
     print("Reply text:", reply_text)
-
-    client = Client()
-    client.login(handle, password)
 
     reply_to = build_reply_ref(target)
 
@@ -158,6 +173,7 @@ def main():
     )
 
     print("Reply posted successfully.")
+
 
 if __name__ == "__main__":
     main()
