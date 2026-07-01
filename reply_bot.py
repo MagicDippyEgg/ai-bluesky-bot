@@ -108,7 +108,7 @@ def make_reply(query: str, post) -> str:
         messages=[{"role": "user", "content": prompt}],
         temperature=1.0,
         max_tokens=80,
-        extra_body={"reasoning_format": "hidden"}
+        extra_body={"reasoning_format": "hidden", "reasoning_effort": "none"}
     )
 
     reply = response.choices[0].message.content.strip()

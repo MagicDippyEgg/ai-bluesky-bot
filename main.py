@@ -198,7 +198,7 @@ def main():
             ],
             temperature=1.35,
             max_tokens=80,
-            extra_body={"reasoning_format": "hidden"}
+            extra_body={"reasoning_format": "hidden", "reasoning_effort": "none"}
         )
 
         candidate = clean_output(response.choices[0].message.content)
