@@ -8,7 +8,7 @@ from groq import Groq
 from atproto import Client
 
 
-MODEL = "openai/gpt-oss-20b"
+MODEL = "qwen/qwen3.6-27b"
 MAX_ATTEMPTS = 2
 RECENT_LIMIT = 15
 SIMILARITY_THRESHOLD = 0.58
@@ -198,6 +198,7 @@ def main():
             ],
             temperature=1.35,
             max_tokens=80,
+            extra_body={"reasoning_format": "none"}
         )
 
         candidate = clean_output(response.choices[0].message.content)
