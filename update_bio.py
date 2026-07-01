@@ -28,7 +28,7 @@ def make_bio() -> str:
         ],
         temperature=1.1,
         max_tokens=60,
-        extra_body={"reasoning_format": "none"}
+        extra_body={"reasoning_format": "hidden"}
     )
 
     bio = response.choices[0].message.content.strip()
