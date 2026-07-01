@@ -8,7 +8,7 @@ from atproto import Client, models
 
 LOOKBACK_POSTS = int(os.getenv("LOOKBACK_POSTS", "25"))
 THREAD_DEPTH = int(os.getenv("THREAD_DEPTH", "100"))
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "qwen/qwen3.6-27b")
 
 
 def now_utc() -> str:

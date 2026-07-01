@@ -2,7 +2,7 @@ import os
 from groq import Groq
 from atproto import Client
 
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "qwen/qwen3.6-27b")
 
 PROMPT = """
 Write ONE short Bluesky bio/about line.
