@@ -8,7 +8,7 @@ from groq import Groq
 from atproto import Client
 
 
-MODEL = "qwen/qwen3.6-27b"
+MODEL = "openai/gpt-oss-20b"
 MAX_ATTEMPTS = 2
 RECENT_LIMIT = 15
 SIMILARITY_THRESHOLD = 0.58
