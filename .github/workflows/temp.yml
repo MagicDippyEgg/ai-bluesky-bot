@@ -1,0 +1,99 @@
+name: Follow Bridgy Fed
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * *"
+
+jobs:
+  follow:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Follow @ap.brid.gy
+        env:
+          BSKY_USERNAME: ${{ secrets.BSKY_USERNAME }}
+          BSKY_PASSWORD: ${{ secrets.BSKY_PASSWORD }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+          import urllib.parse
+
+          username = os.environ["BSKY_USERNAME"]
+          password = os.environ["BSKY_PASSWORD"]
+
+          def request(url, data=None, headers=None):
+              req = urllib.request.Request(
+                  url,
+                  data=json.dumps(data).encode() if data else None,
+                  headers=headers or {},
+                  method="POST" if data else "GET"
+              )
+              with urllib.request.urlopen(req) as response:
+                  return json.load(response)
+
+          # Log in
+          session = request(
+              "https://bsky.social/xrpc/com.atproto.server.createSession",
+              {
+                  "identifier": username,
+                  "password": password
+              },
+              {"Content-Type": "application/json"}
+          )
+
+          did = session["did"]
+          access_jwt = session["accessJwt"]
+
+          # Resolve @ap.brid.gy
+          params = urllib.parse.urlencode({"handle": "ap.brid.gy"})
+          resolved = request(
+              f"https://bsky.social/xrpc/com.atproto.identity.resolveHandle?{params}"
+          )
+
+          target_did = resolved["did"]
+
+          print(f"Target DID: {target_did}")
+
+          # Check existing relationship
+          params = urllib.parse.urlencode({
+              "actor": did,
+              "others": target_did
+          })
+
+          relationships = request(
+              f"https://bsky.social/xrpc/app.bsky.graph.getRelationships?{params}",
+              headers={"Authorization": f"Bearer {access_jwt}"}
+          )
+
+          relationship = relationships["relationships"][0]
+
+          if relationship.get("following"):
+              print("Already following @ap.brid.gy!")
+              raise SystemExit(0)
+
+          # Create follow record
+          result = request(
+              "https://bsky.social/xrpc/com.atproto.repo.createRecord",
+              {
+                  "repo": did,
+                  "collection": "app.bsky.graph.follow",
+                  "record": {
+                      "$type": "app.bsky.graph.follow",
+                      "subject": target_did,
+                      "createdAt": __import__("datetime").datetime.now(
+                          __import__("datetime").timezone.utc
+                      ).isoformat().replace("+00:00", "Z")
+                  }
+              },
+              {
+                  "Content-Type": "application/json",
+                  "Authorization": f"Bearer {access_jwt}"
+              }
+          )
+
+          print("Successfully followed @ap.brid.gy!")
+          print(f"Follow record: {result['uri']}")
+          PY
