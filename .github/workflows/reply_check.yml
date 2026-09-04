@@ -30,6 +30,6 @@ jobs:
           BSKY_PASSWORD: ${{ secrets.BSKY_PASSWORD }}
           LOOKBACK_POSTS: "25"
           THREAD_DEPTH: "100"
-          GROQ_MODEL: "llama-3.3-70b-versatile"
+          GROQ_MODEL: ${{ secrets.GROQ_MODEL }}
         run: |
           python reply_to_unanswered.py

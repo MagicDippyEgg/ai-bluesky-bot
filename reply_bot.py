@@ -4,7 +4,7 @@ import random
 from groq import Groq
 from atproto import Client, models
 
-MODEL = "qwen/qwen3.6-27b"
+MODEL = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
 
 DEFAULT_QUERIES = [
     "random thoughts",
